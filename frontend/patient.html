@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Clinic | City Clinic</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h2>🏥 City Clinic</h2>
+    <a href="patient.html" class="active">My Appointments</a>
+    <button class="logout" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <h1>Hello, <span id="patientName">...</span> 👋</h1>
+      <div class="who">Patient Portal</div>
+    </div>
+
+    <!-- 🔔 NOTIFICATION BANNER -->
+    <div id="notifPanel" style="display:none;background:#fffaf0;border-left:4px solid #f6ad55;border-radius:10px;padding:1.2rem;margin-bottom:1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem">
+        <h3 style="color:#0f2a4a;font-size:1rem;margin:0">🔔 Notifications</h3>
+        <button onclick="markAllRead()" style="background:#e2e8f0;border:none;padding:0.35rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600;color:#2d3748">Dismiss All</button>
+      </div>
+      <div id="notifList"></div>
+    </div>
+
+    <div class="panel">
+      <h3>📅 Book a New Appointment</h3>
+      <div class="field">
+        <label>Doctor</label>
+        <select id="doctorSelect">
+          <option value="">-- Choose a doctor --</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="apptDate">
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <input type="time" id="apptTime">
+      </div>
+      <div class="field">
+        <label>Reason for Visit</label>
+        <textarea id="apptReason" rows="3" placeholder="e.g., Persistent cough for 5 days"></textarea>
+      </div>
+      <button class="btn" onclick="bookAppointment()">Request Appointment</button>
+      <div id="bookMsg" class="msg"></div>
+    </div>
+
+    <div class="panel">
+      <h3>📋 My Appointments</h3>
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Time</th><th>Reason</th><th>Status</th></tr>
+        </thead>
+        <tbody id="apptTable">
+          <tr><td colspan="4" style="text-align:center;color:#a0aec0">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const user = getUser();
+if (!user) window.location.href = 'login.html';
+if (user.role !== 'PATIENT') {
+  alert('Patient access only.');
+  window.location.href = 'dashboard.html';
+}
+document.getElementById('patientName').textContent = user.name || 'Patient';
+
+async function loadDoctors() {
+  try {
+    const doctors = await apiFetch('/patients/doctors/list');
+    const sel = document.getElementById('doctorSelect');
+    doctors.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.doctor_id;
+      opt.textContent = `Dr. ${d.first_name} ${d.last_name} — ${d.specialization}`;
+      sel.appendChild(opt);
+    });
+  } catch (err) { console.error(err); }
+}
+
+async function loadMyAppointments() {
+  const tbody = document.getElementById('apptTable');
+  try {
+    const appts = await apiFetch(`/patients/${user.id}/appointments`);
+    if (appts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0">No appointments yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = appts.map(a => `
+      <tr>
+        <td>${new Date(a.appointment_date).toLocaleDateString()}</td>
+        <td>${a.appointment_time}</td>
+        <td>${a.reason_for_visit || '-'}</td>
+        <td><span class="badge ${statusClass(a.status)}">${a.status}</span></td>
+      </tr>`).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" style="color:#e53e3e">${err.message}</td></tr>`;
+  }
+}
+
+function statusClass(s) {
+  return { Booked: 'blue', Completed: 'green', Cancelled: 'red', Pending: 'orange' }[s] || 'blue';
+}
+
+async function loadNotifications() {
+  try {
+    const notifs = await apiFetch('/notifications');
+    const unread = notifs.filter(n => !n.is_read);
+    const panel = document.getElementById('notifPanel');
+    const list = document.getElementById('notifList');
+
+    if (unread.length === 0) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    panel.style.display = 'block';
+    list.innerHTML = unread.map(n => `
+      <div style="padding:0.8rem;background:#fff;border-radius:8px;margin-bottom:0.5rem;border:1px solid #f6ad55;display:flex;justify-content:space-between;align-items:center;gap:0.6rem">
+        <div style="flex:1">
+          <div style="font-size:0.9rem;color:#1a202c">${n.message}</div>
+          <div style="font-size:0.72rem;color:#718096;margin-top:0.3rem">${new Date(n.created_at).toLocaleString()}</div>
+        </div>
+        <button onclick="dismissOne(${n.notification_id})" style="background:#e2e8f0;border:none;padding:0.35rem 0.8rem;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600;color:#2d3748">Dismiss</button>
+      </div>`).join('');
+  } catch (err) { console.error('Notifications:', err); }
+}
+
+async function dismissOne(id) {
+  try {
+    await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
+    loadNotifications();
+  } catch (err) { alert('Failed: ' + err.message); }
+}
+
+async function markAllRead() {
+  try {
+    const notifs = await apiFetch('/notifications');
+    for (const n of notifs.filter(x => !x.is_read)) {
+      await apiFetch(`/notifications/${n.notification_id}/read`, { method: 'PATCH' });
+    }
+    loadNotifications();
+  } catch (err) { alert('Failed: ' + err.message); }
+}
+
+async function bookAppointment() {
+  const msg = document.getElementById('bookMsg');
+  msg.className = 'msg';
+  const doctorId = document.getElementById('doctorSelect').value;
+  const date = document.getElementById('apptDate').value;
+  const time = document.getElementById('apptTime').value;
+  const reason = document.getElementById('apptReason').value;
+
+  if (!doctorId || !date || !time) {
+    msg.textContent = 'Please fill in doctor, date, and time';
+    msg.className = 'msg error';
+    return;
+  }
+
+  try {
+    await apiFetch('/appointments', {
+      method: 'POST',
+      body: JSON.stringify({
+        patient_id: user.id,
+        doctor_id: doctorId,
+        appointment_date: date,
+        appointment_time: time,
+        reason_for_visit: reason
+      })
+    });
+    msg.textContent = '✅ Appointment requested! Awaiting doctor approval.';
+    msg.className = 'msg success';
+    document.getElementById('apptDate').value = '';
+    document.getElementById('apptTime').value = '';
+    document.getElementById('apptReason').value = '';
+    loadMyAppointments();
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'msg error';
+  }
+}
+
+loadDoctors();
+loadMyAppointments();
+loadNotifications();
+</script>
+<script src="js/tour.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Queue | City Clinic</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h2>🏥 DCMS</h2>
+    <a href="dashboard.html">Dashboard</a>
+     <a href="doctor.html">Doctor Panel</a>
+    <a href="triage.html">Triage</a>
+    <a href="queue.html" class="active">Live Queue</a>
+     <a href="pharmacy.html">Pharmacy</a>
+     <a href="records.html">Medical Records</a>
+     <a href="reports.html">Reports</a>
+  <a href="admin.html">Admin Panel</a>
+    <button class="logout" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <h1>🩺 Live Queue</h1>
+      <div class="who">Auto-refreshes every 10s · Last update: <span id="lastUpdate">--</span></div>
+    </div>
+
+    <div class="panel">
+      <table>
+        <thead>
+          <tr><th>Position</th><th>Patient</th><th>Priority</th><th>Entered</th><th>Action</th></tr>
+        </thead>
+        <tbody id="queueTable">
+          <tr><td colspan="5" style="text-align:center;color:#a0aec0">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const user = getUser();
+if (!user) window.location.href = 'index.html';
+
+async function loadQueue() {
+  const tbody = document.getElementById('queueTable');
+  try {
+    const queue = await apiFetch('/queue');
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+    if (queue.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0">Queue is empty</td></tr>';
+      return;
+    }
+    tbody.innerHTML = queue.map(q => `
+      <tr>
+        <td><b>#${q.position}</b></td>
+        <td>${q.first_name} ${q.last_name}</td>
+        <td><span class="badge ${q.priority.toLowerCase()}">${q.priority}</span></td>
+        <td>${new Date(q.entered_at).toLocaleTimeString()}</td>
+        <td>
+          <button class="btn success" style="width:auto;padding:0.3rem 0.8rem;font-size:0.8rem"
+                  onclick="markServed(${q.queue_id})">Mark Served</button>
+        </td>
+      </tr>`).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#e53e3e">${err.message}</td></tr>`;
+  }
+}
+
+async function markServed(queueId) {
+  try {
+    await apiFetch(`/queue/${queueId}/served`, { method: 'PATCH' });
+    loadQueue();
+  } catch (err) {
+    alert('Failed: ' + err.message);
+  }
+}
+
+loadQueue();
+setInterval(loadQueue, 10000); // refresh every 10s
+</script>
+<script src="js/tour.js"></script>
+</body>
+</html>

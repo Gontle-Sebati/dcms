@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Triage | City Clinic</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h2>🏥 DCMS</h2>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="triage.html" class="active">Triage</a>
+    <a href="queue.html">Live Queue</a>
+    <a href="records.html">Medical Records</a>
+    <button class="logout" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <h1>Nurse Triage</h1>
+      <div class="who"><span id="nurseName">...</span></div>
+    </div>
+
+    <div class="panel">
+      <h3>🧑‍⚕️ Find Patient</h3>
+      <div class="field">
+        <label>Search by Name, ID Number, or Phone</label>
+        <input id="searchBox" placeholder="Start typing..." autocomplete="off">
+      </div>
+      <div id="results"></div>
+    </div>
+
+    <div class="panel" id="triageForm" style="display:none">
+      <h3>📋 Triage — <span id="selPatientName"></span></h3>
+      <div class="field">
+        <label>Reason for Visit</label>
+        <input id="reason" placeholder="e.g., Headache, chest pain...">
+      </div>
+      <div class="field">
+        <label>Blood Pressure</label>
+        <input id="bp" placeholder="e.g., 120/80">
+      </div>
+      <div class="field">
+        <label>Temperature (°C)</label>
+        <input id="temp" type="number" step="0.1" placeholder="e.g., 36.8">
+      </div>
+      <div class="field">
+        <label>Weight (kg)</label>
+        <input id="weight" type="number" step="0.1" placeholder="e.g., 65.5">
+      </div>
+      <div class="field">
+        <label>Heart Rate (bpm)</label>
+        <input id="hr" type="number" placeholder="e.g., 72">
+      </div>
+      <div class="field">
+        <label>Priority Level</label>
+        <select id="priority">
+          <option value="Green">🟢 Green — Stable, routine</option>
+          <option value="Yellow">🟡 Yellow — Semi-urgent</option>
+          <option value="Orange">🟠 Orange — Urgent</option>
+          <option value="Red">🔴 Red — Emergency</option>
+        </select>
+      </div>
+      <button class="btn" onclick="submitTriage()">Assign to Queue</button>
+      <div id="msg" class="msg"></div>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const user = getUser();
+if (!user) window.location.href = 'index.html';
+document.getElementById('nurseName').textContent = user.name || 'Nurse';
+
+let selectedPatient = null;
+
+document.getElementById('searchBox').addEventListener('input', async (e) => {
+  const q = e.target.value.trim();
+  const results = document.getElementById('results');
+  if (q.length < 2) { results.innerHTML = ''; return; }
+  try {
+    const patients = await apiFetch(`/patients/search?q=${encodeURIComponent(q)}`);
+    if (patients.length === 0) {
+      results.innerHTML = '<p style="color:#a0aec0;font-size:0.85rem">No matches</p>';
+      return;
+    }
+    results.innerHTML = patients.map(p => `
+      <div style="padding:0.7rem;border-bottom:1px solid #edf2f7;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <b>${p.first_name} ${p.last_name}</b>
+          <div style="font-size:0.8rem;color:#718096">ID: ${p.id_number || '-'} · Phone: ${p.phone || '-'}</div>
+        </div>
+        <button class="btn success" style="width:auto;padding:0.4rem 0.9rem;font-size:0.85rem" onclick='selectPatient(${JSON.stringify(p)})'>Select</button>
+      </div>`).join('');
+  } catch (err) {
+    results.innerHTML = `<p style="color:#e53e3e">${err.message}</p>`;
+  }
+});
+
+function selectPatient(p) {
+  selectedPatient = p;
+  document.getElementById('selPatientName').textContent = `${p.first_name} ${p.last_name}`;
+  document.getElementById('triageForm').style.display = 'block';
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('searchBox').value = `${p.first_name} ${p.last_name}`;
+  document.getElementById('triageForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function submitTriage() {
+const msg = document.getElementById('msg');
+msg.className = 'msg';
+if (!selectedPatient) return;
+
+const weightRaw = document.getElementById('weight').value.replace(',', '.');
+const tempRaw = document.getElementById('temp').value.replace(',', '.');
+
+const body = {
+patient_id: selectedPatient.patient_id,
+priority: document.getElementById('priority').value
+};
+try {
+    // Add to queue
+    const result = await apiFetch('/queue', {
+    method: 'POST',
+    body: JSON.stringify(body)
+    });
+    msg.textContent = `Added to queue — position #${result.position}`;
+    msg.className = 'msg success';
+    setTimeout(() => {
+    selectedPatient = null;
+    document.getElementById('triageForm').style.display = 'none';
+    document.getElementById('searchBox').value = '';
+    msg.className = 'msg';
+    }, 2000);
+} catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'msg error';
+}
+}
+</script>
+<script src="js/tour.js"></script>
+</body>
+</html>
+

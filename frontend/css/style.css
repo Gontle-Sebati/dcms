@@ -1,0 +1,105 @@
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+body { background: #f0f4f8; color: #1a202c; }
+
+.login-wrapper {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #0f2a4a 0%, #1e5a8a 100%);
+}
+.card {
+  background: #fff; padding: 2.5rem; border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2); width: 100%; max-width: 420px;
+}
+.card h1 { color: #0f2a4a; font-size: 1.6rem; margin-bottom: 0.3rem; }
+.card .sub { color: #718096; font-size: 0.85rem; margin-bottom: 1.8rem; }
+
+.field { margin-bottom: 1.1rem; }
+.field label { display: block; font-size: 0.75rem; text-transform: uppercase; color: #4a5568; margin-bottom: 0.4rem; letter-spacing: 0.5px; }
+.field input, .field select, .field textarea {
+  width: 100%; padding: 0.75rem 1rem; border: 1px solid #cbd5e0;
+  border-radius: 8px; font-size: 0.95rem; transition: 0.2s;
+}
+.field input:focus, .field select:focus { outline: none; border-color: #1e5a8a; box-shadow: 0 0 0 3px rgba(30,90,138,0.15); }
+
+.btn {
+  width: 100%; padding: 0.85rem; border: none; border-radius: 8px;
+  background: #0d9488; color: #fff; font-size: 0.95rem; font-weight: 600;
+  cursor: pointer; transition: 0.2s;
+}
+.btn:hover { background: #0f766e; }
+.btn.secondary { background: #e2e8f0; color: #1a202c; }
+.btn.danger { background: #e53e3e; }
+.btn.success { background: #38a169; }
+
+.link { text-align: center; margin-top: 1rem; font-size: 0.85rem; }
+.link a { color: #0d9488; text-decoration: none; }
+
+/* Dashboard */
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 240px; background: #0f2a4a; color: #fff; padding: 1.5rem 1rem;
+  display: flex; flex-direction: column;
+}
+.sidebar h2 { font-size: 1.1rem; margin-bottom: 1.5rem; color: #4fd1c5; }
+.sidebar a {
+  color: #cbd5e0; text-decoration: none; padding: 0.7rem 0.9rem;
+  border-radius: 8px; margin-bottom: 0.3rem; font-size: 0.9rem; display: block;
+}
+.sidebar a:hover, .sidebar a.active { background: #1e5a8a; color: #fff; }
+.sidebar .logout {
+  margin-top: auto; background: #e53e3e; color: #fff; text-align: center;
+  cursor: pointer; border: none; padding: 0.7rem; border-radius: 8px;
+  font-size: 0.9rem; font-weight: 600;
+}
+.sidebar .logout:hover { background: #c53030; }
+
+.main { flex: 1; padding: 2rem; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.header h1 { font-size: 1.5rem; color: #0f2a4a; }
+.header .who { font-size: 0.85rem; color: #718096; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.stat {
+  background: #fff; padding: 1.3rem; border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid #0d9488;
+}
+.stat .num { font-size: 1.8rem; font-weight: 700; color: #0f2a4a; }
+.stat .lbl { font-size: 0.8rem; color: #718096; margin-top: 0.2rem; }
+
+.panel {
+  background: #fff; border-radius: 12px; padding: 1.3rem; margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.panel h3 { color: #0f2a4a; margin-bottom: 1rem; font-size: 1rem; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+th { text-align: left; padding: 0.7rem; background: #f7fafc; color: #4a5568; font-size: 0.75rem; text-transform: uppercase; }
+td { padding: 0.7rem; border-bottom: 1px solid #edf2f7; }
+
+.badge { padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+.badge.green { background: #c6f6d5; color: #22543d; }
+.badge.orange { background: #feebc8; color: #7b341e; }
+.badge.red { background: #fed7d7; color: #742a2a; }
+.badge.yellow { background: #fefcbf; color: #744210; }
+.badge.blue { background: #bee3f8; color: #2a4365; }
+
+.msg { padding: 0.7rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.88rem; display: none; }
+.msg.error { background: #fed7d7; color: #742a2a; display: block; }
+.msg.success { background: #c6f6d5; color: #22543d; display: block; }
+
+@media (max-width: 768px) {
+  .layout { flex-direction: column; }
+  .sidebar { width: 100%; flex-direction: row; overflow-x: auto; padding: 0.5rem; }
+  .sidebar h2, .sidebar .logout { display: none; }
+  .sidebar a { white-space: nowrap; }
+  .main { padding: 1rem; }
+}
+/* Highlight pending appointments on the dashboard */
+.badge.orange {
+  animation: pulse-badge 1.5s infinite;
+  font-weight: 700;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}

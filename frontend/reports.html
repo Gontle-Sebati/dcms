@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports | City Clinic</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .chart-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.3rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .chart-card h3 {
+    color: #0f2a4a;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+  .chart-wrapper {
+    position: relative;
+    height: 280px;
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h2>🏥 DCMS</h2>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="doctor.html">Doctor Panel</a>
+    <a href="records.html">Medical Records</a>
+    <a href="triage.html">Triage</a>
+    <a href="queue.html">Live Queue</a>
+    <a href="pharmacy.html">Pharmacy</a>
+    <a href="admin.html">Admin Panel</a>
+    <a href="reports.html" class="active">Reports</a>
+    <button class="logout" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <h1>📊 Reports & Statistics</h1>
+      <div class="who">Generated: <span id="genTime"></span></div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats">
+      <div class="stat">
+        <div class="num" id="rAppts">0</div>
+        <div class="lbl">Appointments Today</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="rQueue">0</div>
+        <div class="lbl">Currently in Queue</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="rPatients">0</div>
+        <div class="lbl">Total Patients</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="rMeds">0</div>
+        <div class="lbl">Medication Types</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="rLow">0</div>
+        <div class="lbl">Low Stock Alerts</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="rStaff">0</div>
+        <div class="lbl">Staff Accounts</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>📈 Appointment Status Breakdown</h3>
+        <div class="chart-wrapper">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>🚦 Queue Priority Distribution</h3>
+        <div class="chart-wrapper">
+          <canvas id="priorityChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>💊 Medication Stock Levels</h3>
+        <div class="chart-wrapper">
+          <canvas id="stockChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>👥 Staff Roles</h3>
+        <div class="chart-wrapper">
+          <canvas id="rolesChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOCTORS -->
+    <div class="panel">
+      <h3>👨‍⚕️ Doctors</h3>
+      <table>
+        <thead><tr><th>Doctor</th><th>Specialization</th><th>Appointments Today</th></tr></thead>
+        <tbody id="docReport"></tbody>
+      </table>
+    </div>
+
+    <!-- LOW STOCK -->
+    <div class="panel">
+      <h3>⚠️ Low Stock Medications</h3>
+      <table>
+        <thead><tr><th>Medication</th><th>Stock</th><th>Min Threshold</th><th>Status</th></tr></thead>
+        <tbody id="lowStockReport"></tbody>
+      </table>
+    </div>
+
+    <!-- RECENT ACTIVITY -->
+    <div class="panel">
+      <h3>🕐 Recent Activity (last 10 appointments)</h3>
+      <table>
+        <thead><tr><th>Patient</th><th>Doctor</th><th>Date</th><th>Status</th></tr></thead>
+        <tbody id="recentReport"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const user = getUser();
+if (!user) window.location.href = 'login.html';
+if (user.role !== 'ADMIN') {
+  alert('Admin access only.');
+  window.location.href = 'dashboard.html';
+}
+
+document.getElementById('genTime').textContent = new Date().toLocaleString();
+
+// Color palette (matches DCMS theme)
+const COLORS = {
+  teal: '#0d9488',
+  navy: '#0f2a4a',
+  blue: '#3b82f6',
+  orange: '#f59e0b',
+  red: '#e53e3e',
+  yellow: '#eab308',
+  green: '#38a169',
+  purple: '#8b5cf6',
+  gray: '#a0aec0'
+};
+
+async function loadReports() {
+  try {
+    const [appts, queue, patients, meds, users, doctors] = await Promise.all([
+      apiFetch('/appointments/today').catch(() => []),
+      apiFetch('/queue').catch(() => []),
+      apiFetch('/patients').catch(() => []),
+      apiFetch('/inventory').catch(() => []),
+      apiFetch('/auth/users').catch(() => []),
+      apiFetch('/patients/doctors/list').catch(() => [])
+    ]);
+
+    // Stat cards
+    document.getElementById('rAppts').textContent = appts.length;
+    document.getElementById('rQueue').textContent = queue.length;
+    document.getElementById('rPatients').textContent = patients.length;
+    document.getElementById('rMeds').textContent = meds.length;
+    document.getElementById('rStaff').textContent = users.length;
+
+    const low = meds.filter(m => m.quantity_on_hand <= m.minimum_threshold);
+    document.getElementById('rLow').textContent = low.length;
+
+    // ============ CHART 1: Appointment Status ============
+    const statusCounts = { Booked: 0, Pending: 0, Cancelled: 0, Completed: 0 };
+    appts.forEach(a => { if (statusCounts[a.status] !== undefined) statusCounts[a.status]++; });
+
+    new Chart(document.getElementById('statusChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Booked', 'Pending', 'Cancelled', 'Completed'],
+        datasets: [{
+          data: [statusCounts.Booked, statusCounts.Pending, statusCounts.Cancelled, statusCounts.Completed],
+          backgroundColor: [COLORS.blue, COLORS.orange, COLORS.red, COLORS.green],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 } } }
+        }
+      }
+    });
+
+    // ============ CHART 2: Queue Priority ============
+    const priorityCounts = { Red: 0, Orange: 0, Yellow: 0, Green: 0 };
+    queue.forEach(q => { if (priorityCounts[q.priority] !== undefined) priorityCounts[q.priority]++; });
+
+    new Chart(document.getElementById('priorityChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Red', 'Orange', 'Yellow', 'Green'],
+        datasets: [{
+          label: 'Patients Waiting',
+          data: [priorityCounts.Red, priorityCounts.Orange, priorityCounts.Yellow, priorityCounts.Green],
+          backgroundColor: [COLORS.red, COLORS.orange, COLORS.yellow, COLORS.green],
+          borderRadius: 8,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f0f4f8' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+
+    // ============ CHART 3: Medication Stock ============
+    const topMeds = meds.slice(0, 6);
+    new Chart(document.getElementById('stockChart'), {
+      type: 'bar',
+      data: {
+        labels: topMeds.map(m => m.name),
+        datasets: [
+          {
+            label: 'In Stock',
+            data: topMeds.map(m => m.quantity_on_hand),
+            backgroundColor: topMeds.map(m =>
+              m.quantity_on_hand <= m.minimum_threshold ? COLORS.red : COLORS.teal
+            ),
+            borderRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { beginAtZero: true, grid: { color: '#f0f4f8' } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+
+    // ============ CHART 4: Staff Roles ============
+    const roleCounts = {};
+    users.forEach(u => { roleCounts[u.role] = (roleCounts[u.role] || 0) + 1; });
+
+    new Chart(document.getElementById('rolesChart'), {
+      type: 'pie',
+      data: {
+        labels: Object.keys(roleCounts),
+        datasets: [{
+          data: Object.values(roleCounts),
+          backgroundColor: [COLORS.navy, COLORS.teal, COLORS.blue, COLORS.orange, COLORS.purple, COLORS.gray],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } }
+        }
+      }
+    });
+
+    // ============ DOCTORS TABLE ============
+    const doctorCounts = {};
+    appts.forEach(a => {
+      const key = a.doctor_id;
+      if (key) doctorCounts[key] = (doctorCounts[key] || 0) + 1;
+    });
+
+    document.getElementById('docReport').innerHTML = doctors.map(d => {
+      const count = doctorCounts[d.doctor_id] || 0;
+      return `<tr><td>Dr. ${d.first_name} ${d.last_name}</td><td>${d.specialization || '-'}</td><td>${count}</td></tr>`;
+    }).join('') || '<tr><td colspan="3" style="color:#a0aec0">No doctors</td></tr>';
+
+    // ============ LOW STOCK TABLE ============
+    document.getElementById('lowStockReport').innerHTML = low.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:#a0aec0">All good ✅</td></tr>'
+      : low.map(m => `<tr><td>${m.name}</td><td>${m.quantity_on_hand}</td><td>${m.minimum_threshold}</td><td><span class="badge red">LOW</span></td></tr>`).join('');
+
+    // ============ RECENT ACTIVITY ============
+    document.getElementById('recentReport').innerHTML = appts.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:#a0aec0">No appointments today</td></tr>'
+      : appts.slice(0, 10).map(a => `
+        <tr>
+          <td>${a.first_name} ${a.last_name}</td>
+          <td>${a.doctor_id ? 'Dr. #' + a.doctor_id : '-'}</td>
+          <td>${new Date(a.appointment_date).toLocaleDateString()} ${a.appointment_time}</td>
+          <td><span class="badge ${statusClass(a.status)}">${a.status}</span></td>
+        </tr>`).join('');
+  } catch (err) {
+    console.error('Reports error:', err);
+  }
+}
+
+function statusClass(s) {
+  return { Booked: 'blue', Completed: 'green', Cancelled: 'red', Pending: 'orange' }[s] || 'blue';
+}
+
+loadReports();
+</script>
+<script src="js/tour.js"></script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

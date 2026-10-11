@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>City Clinic | Quality Healthcare in Kimberley</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+  body { background: #f7fafc; color: #1a202c; }
+
+  /* NAVBAR */
+  .nav {
+    background: #fff; padding: 1rem 2rem; display: flex; align-items: center;
+    justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav .brand { display: flex; align-items: center; gap: 0.6rem; font-size: 1.3rem; font-weight: 700; color: #0f2a4a; }
+  .nav .brand .logo {
+    width: 38px; height: 38px; background: #0d9488; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.2rem;
+  }
+  .nav .links { display: flex; gap: 1.5rem; align-items: center; }
+  .nav .links a { color: #4a5568; text-decoration: none; font-size: 0.95rem; }
+  .nav .links a:hover { color: #0d9488; }
+  .nav .login-btn {
+    background: #0d9488; color: #fff; padding: 0.6rem 1.3rem; border-radius: 8px;
+    text-decoration: none; font-weight: 600; font-size: 0.9rem;
+  }
+  .nav .login-btn:hover { background: #0f766e; }
+
+  /* HERO */
+  .hero {
+    background: linear-gradient(135deg, #0f2a4a 0%, #1e5a8a 100%);
+    color: #fff; padding: 5rem 2rem; text-align: center;
+  }
+  .hero h1 { font-size: 2.8rem; margin-bottom: 1rem; line-height: 1.2; }
+  .hero p { font-size: 1.15rem; color: #cbd5e0; max-width: 700px; margin: 0 auto 2rem; }
+  .hero .cta-row { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  .hero .cta {
+    padding: 1rem 2rem; border-radius: 10px; text-decoration: none; font-weight: 600;
+    font-size: 1rem; display: inline-block; transition: 0.2s;
+  }
+  .hero .cta.primary { background: #0d9488; color: #fff; }
+  .hero .cta.primary:hover { background: #0f766e; }
+  .hero .cta.secondary { background: transparent; color: #fff; border: 2px solid #fff; }
+  .hero .cta.secondary:hover { background: rgba(255,255,255,0.1); }
+
+  /* SECTIONS */
+  .section { padding: 4rem 2rem; max-width: 1200px; margin: 0 auto; }
+  .section h2 { font-size: 2rem; color: #0f2a4a; text-align: center; margin-bottom: 0.6rem; }
+  .section .sub { color: #718096; text-align: center; margin-bottom: 3rem; font-size: 1rem; }
+
+  /* SPECIALTY CARDS */
+  .specialty-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+  }
+  .spec-card {
+    background: #fff; padding: 2rem 1rem; border-radius: 12px; text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: 0.2s; cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .spec-card:hover { transform: translateY(-3px); border-color: #0d9488; box-shadow: 0 6px 20px rgba(13,148,136,0.15); }
+  .spec-card .icon { font-size: 2.5rem; margin-bottom: 0.7rem; }
+  .spec-card h3 { font-size: 1rem; color: #0f2a4a; font-weight: 600; }
+
+  /* STEPS */
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
+  .step {
+    background: #fff; padding: 2rem 1.5rem; border-radius: 12px; text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  .step .num {
+    width: 42px; height: 42px; background: #0d9488; color: #fff; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+    margin: 0 auto 1rem; font-size: 1.1rem;
+  }
+  .step h4 { color: #0f2a4a; margin-bottom: 0.5rem; font-size: 1.05rem; }
+  .step p { color: #718096; font-size: 0.9rem; line-height: 1.5; }
+
+  /* DOCTORS */
+  .doc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+  .doc-card {
+    background: #fff; border-radius: 12px; padding: 1.8rem; text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  .doc-card .avatar {
+  width: 120px; height: 120px; border-radius: 50%;
+  background: #e2e8f0;
+  background-size: cover;
+  background-position: center;
+  margin: 0 auto 1rem;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* Per-doctor image classes */
+.doc-card .avatar.sarah   { background-image: url('images/sarah-johnson.jpg'); }
+.doc-card .avatar.priya   { background-image: url('images/priya-pillay.jpg'); }
+.doc-card .avatar.michael { background-image: url('images/michael-nkosi.jpg'); }
+ .doc-card h4 { color: #0f2a4a; margin-bottom: 0.3rem; }
+  .doc-card .spec { color: #0d9488; font-size: 0.85rem; margin-bottom: 0.8rem; font-weight: 600; }
+  .doc-card .contact { color: #718096; font-size: 0.85rem; }
+
+  /* CTA SECTION */
+  .cta-section {
+    background: #0f2a4a; color: #fff; padding: 4rem 2rem; text-align: center;
+  }
+  .cta-section h2 { color: #fff; margin-bottom: 1rem; font-size: 2rem; }
+  .cta-section p { color: #cbd5e0; margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .cta-section .cta {
+    display: inline-block; padding: 1rem 2.5rem; background: #0d9488; color: #fff;
+    text-decoration: none; border-radius: 10px; font-weight: 600;
+  }
+  .cta-section .cta:hover { background: #0f766e; }
+
+  /* FOOTER */
+  footer {
+    background: #1a202c; color: #a0aec0; padding: 3rem 2rem 1.5rem;
+  }
+  .footer-grid {
+    max-width: 1200px; margin: 0 auto; display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem;
+  }
+  .footer-grid h5 { color: #fff; margin-bottom: 0.8rem; font-size: 0.95rem; }
+  .footer-grid p, .footer-grid a { color: #a0aec0; font-size: 0.85rem; text-decoration: none; display: block; margin-bottom: 0.4rem; }
+  .footer-grid a:hover { color: #0d9488; }
+  .footer-bottom {
+    text-align: center; margin-top: 2.5rem; padding-top: 1.5rem;
+    border-top: 1px solid #2d3748; font-size: 0.8rem; color: #718096;
+  }
+
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 2rem; }
+    .nav { padding: 0.8rem 1rem; flex-wrap: wrap; }
+    .nav .links { gap: 1rem; font-size: 0.85rem; }
+    .section { padding: 2.5rem 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAVIGATION -->
+<nav class="nav">
+  <div class="brand">
+    <div class="logo">🏥</div>
+    <span>City Clinic</span>
+  </div>
+  <div class="links">
+    <a href="#services">Services</a>
+    <a href="#doctors">Our Doctors</a>
+    <a href="#how">How It Works</a>
+    <a href="#contact">Contact</a>
+    <a class="login-btn" href="login.html">Login</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <h1>Quality Healthcare, Made Simple</h1>
+  <p>Book appointments, view your medical records, and manage your health — all from one secure platform.</p>
+  <div class="cta-row">
+    <a href="register.html" class="cta primary">Book an Appointment</a>
+    <a href="login.html" class="cta secondary">Existing Patient Login</a>
+  </div>
+</section>
+
+<!-- WELCOME TOUR -->
+<section class="section" id="welcome" style="background:#fff;border-radius:20px;padding:3rem 2rem">
+  <div style="text-align:center;max-width:900px;margin:0 auto">
+    <div style="font-size:3.5rem;margin-bottom:1rem">🎓</div>
+    <h2 style="margin-bottom:0.5rem">New Here? Start with this 60-second tour</h2>
+    <p class="sub" style="margin-bottom:2.5rem">No technical skills needed — we'll walk you through it</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;max-width:1200px;margin:0 auto">
+    <div style="background:#f0f9f8;padding:1.8rem;border-radius:14px;border-left:4px solid #0d9488">
+      <div style="font-size:2rem;margin-bottom:0.8rem">1️⃣</div>
+      <h4 style="color:#0f2a4a;margin-bottom:0.5rem">Create Your Account</h4>
+      <p style="color:#4a5568;font-size:0.9rem;line-height:1.6">
+        Click <b>"Book an Appointment"</b> or <b>"Register"</b>. Fill in your name, email, and phone number. It takes 1 minute.
+      </p>
+    </div>
+
+    <div style="background:#fff5eb;padding:1.8rem;border-radius:14px;border-left:4px solid #f59e0b">
+      <div style="font-size:2rem;margin-bottom:0.8rem">2️⃣</div>
+      <h4 style="color:#0f2a4a;margin-bottom:0.5rem">Book a Visit</h4>
+      <p style="color:#4a5568;font-size:0.9rem;line-height:1.6">
+        Log in, choose a doctor and time that suits you. Confirm. That's it — no more waiting in line.
+      </p>
+    </div>
+
+    <div style="background:#eff6ff;padding:1.8rem;border-radius:14px;border-left:4px solid #3b82f6">
+      <div style="font-size:2rem;margin-bottom:0.8rem">3️⃣</div>
+      <h4 style="color:#0f2a4a;margin-bottom:0.5rem">Get Notified</h4>
+      <p style="color:#4a5568;font-size:0.9rem;line-height:1.6">
+        Your doctor approves the appointment. You'll see a <b style="color:#f59e0b">yellow notification</b> the next time you log in.
+      </p>
+    </div>
+
+    <div style="background:#f0fdf4;padding:1.8rem;border-radius:14px;border-left:4px solid #38a169">
+      <div style="font-size:2rem;margin-bottom:0.8rem">4️⃣</div>
+      <h4 style="color:#0f2a4a;margin-bottom:0.5rem">Visit the Clinic</h4>
+      <p style="color:#4a5568;font-size:0.9rem;line-height:1.6">
+        Arrive 15 minutes early. The nurse triages you, the doctor consults, and the pharmacist dispenses your medication.
+      </p>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:2.5rem">
+    <a href="register.html" style="display:inline-block;padding:1rem 2.5rem;background:#0d9488;color:#fff;text-decoration:none;border-radius:10px;font-weight:600">
+      Get Started — it's free →
+    </a>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="section" id="services">
+  <h2>Our Services</h2>
+  <p class="sub">Comprehensive primary healthcare for the Kimberley community</p>
+  <div class="specialty-grid">
+    <div class="spec-card">
+      <div class="icon">🩺</div>
+      <h3>General Practice</h3>
+    </div>
+    <div class="spec-card">
+      <div class="icon">👶</div>
+      <h3>Paediatrics</h3>
+    </div>
+    <div class="spec-card">
+      <div class="icon">💊</div>
+      <h3>Chronic Care</h3>
+    </div>
+    <div class="spec-card">
+      <div class="icon">💉</div>
+      <h3>Immunisations</h3>
+    </div>
+    <div class="spec-card">
+      <div class="icon">🤰</div>
+      <h3>Family Planning</h3>
+    </div>
+    <div class="spec-card">
+      <div class="icon">🧪</div>
+      <h3>Lab Tests</h3>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how" style="background:#fff;border-radius:20px">
+  <h2>How It Works</h2>
+  <p class="sub">Three simple steps to quality care</p>
+  <div class="steps">
+    <div class="step">
+      <div class="num">1</div>
+      <h4>Register Online</h4>
+      <p>Create your free patient account in under 2 minutes with your ID and contact details.</p>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <h4>Book Appointment</h4>
+      <p>Choose your doctor, pick a time slot that suits you, and confirm — no more waiting in line.</p>
+    </div>
+    <div class="step">
+      <div class="num">3</div>
+      <h4>Visit & Get Care</h4>
+      <p>Arrive at your appointment time, get seen quickly, and access your records online afterward.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DOCTORS -->
+ <!-- DOCTORS -->
+<section class="section" id="doctors">
+  <h2>Meet Our Doctors</h2>
+  <p class="sub">Experienced healthcare professionals ready to help</p>
+  <div class="doc-grid">
+    <div class="doc-card">
+      <div class="avatar sarah"></div>
+      <h4>Dr. Sarah Johnson</h4>
+      <div class="spec">General Practitioner</div>
+      <div class="contact">📞 072 123 4567</div>
+    </div>
+    <div class="doc-card">
+      <div class="avatar michael"></div>
+      <h4>Dr. Michael Nkosi</h4>
+      <div class="spec">Paediatrician</div>
+      <div class="contact">📞 073 234 5678</div>
+    </div>
+    <div class="doc-card">
+      <div class="avatar priya"></div>
+      <h4>Dr. Priya Pillay</h4>
+      <div class="spec">Internal Medicine</div>
+      <div class="contact">📞 074 345 6789</div>
+    </div>
+  </div>
+</section>
+<!-- CTA BANNER -->
+<section class="cta-section">
+  <h2>Ready to take control of your health?</h2>
+  <p>Register today and book your first appointment online. It's free and takes less than 2 minutes.</p>
+  <a href="register.html" class="cta">Get Started →</a>
+</section>
+
+<!-- FOOTER -->
+<footer id="contact">
+  <div class="footer-grid">
+    <div>
+      <h5>🏥 City Clinic</h5>
+      <p>Quality primary healthcare in Kimberley, Northern Cape.</p>
+    </div>
+    <div>
+      <h5>Quick Links</h5>
+      <a href="#services">Services</a>
+      <a href="#doctors">Our Doctors</a>
+      <a href="login.html">Patient Login</a>
+      <a href="register.html">Register</a>
+    </div>
+    <div>
+      <h5>Contact</h5>
+      <p>📍 Phakamile Mabija, Main Road, Kimberley</p>
+      <p>📞 +27 53 123 4567</p>
+      <p>✉️ info@cityclinic.co.za</p>
+    </div>
+    <div>
+      <h5>Hours</h5>
+      <p>Mon – Fri: 07:00 – 17:00</p>
+      <p>Sat: 08:00 – 13:00</p>
+      <p>Sun: Closed</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    © 2026 City Clinic · Northern Cape Department of Health · All rights reserved
+  </div>
+</footer>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

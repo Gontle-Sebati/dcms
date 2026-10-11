@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard | City Clinic</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h2>🏥 DCMS</h2>
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="doctor.html">Doctor Panel</a>
+    <a href="records.html">Medical Records</a>
+    <a href="triage.html">Triage</a>
+    <a href="queue.html">Live Queue</a>
+    <a href="pharmacy.html">Pharmacy</a>
+    <a href="admin.html">Admin Panel</a>
+    <a href="reports.html">Reports</a>
+    <button class="logout" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <h1>Good morning, <span id="userName">...</span> 👋</h1>
+      <div class="who" id="userRole"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="num" id="statAppointments">0</div>
+        <div class="lbl">Today's Appointments</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statQueue">0</div>
+        <div class="lbl">In Queue</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statPatients">0</div>
+        <div class="lbl">Total Patients</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="statLowStock">0</div>
+        <div class="lbl">Low Stock Items</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Today's Appointments</h3>
+      <table>
+        <thead>
+          <tr><th>Patient</th><th>Date</th><th>Time</th><th>Status</th></tr>
+        </thead>
+        <tbody id="apptTable">
+          <tr><td colspan="4" style="text-align:center;color:#a0aec0">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>Live Queue</h3>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Patient</th><th>Priority</th><th>Status</th></tr>
+        </thead>
+        <tbody id="queueTable">
+          <tr><td colspan="4" style="text-align:center;color:#a0aec0">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/tour.js"></script>
+<script src="js/help.js"></script>
+<script>
+// Guard: must be logged in
+const user = getUser();
+if (!user) {
+  window.location.href = 'login.html';
+}
+
+// Display user info
+document.getElementById('userName').textContent = (user && user.name) ? user.name : 'User';
+document.getElementById('userRole').textContent = user ? `Role: ${user.role}` : '';
+
+// Helper: badge class for appointment status
+function statusClass(s) {
+  return { Booked: 'blue', Completed: 'green', Cancelled: 'red', Pending: 'orange' }[s] || 'blue';
+}
+
+// Helper: badge class for queue priority
+function priorityClass(p) {
+  return { Red: 'red', Orange: 'orange', Yellow: 'yellow', Green: 'green' }[p] || 'green';
+}
+
+async function loadDashboard() {
+  try {
+    // Fetch today's + approved + pending appointments in parallel
+    const [today, upcoming, pending] = await Promise.all([
+      apiFetch('/appointments/today').catch(() => []),
+      apiFetch('/appointments/approved').catch(() => []),
+      apiFetch('/appointments/pending').catch(() => [])
+    ]);
+
+    // Merge all into one list, deduplicate by appointment_id
+    const map = new Map();
+    [...pending, ...today, ...upcoming].forEach(a => map.set(a.appointment_id, a));
+    const appts = Array.from(map.values());
+
+    // Sort: Pending first, then by date
+    appts.sort((a, b) => {
+      const rank = { Pending: 0, Booked: 1, Completed: 2, Cancelled: 3 };
+      const ra = rank[a.status] ?? 4;
+      const rb = rank[b.status] ?? 4;
+      if (ra !== rb) return ra - rb;
+      return new Date(a.appointment_date) - new Date(b.appointment_date);
+    });
+
+    document.getElementById('statAppointments').textContent = appts.length;
+
+    const apptBody = document.getElementById('apptTable');
+    apptBody.innerHTML = appts.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:#a0aec0">No appointments</td></tr>'
+      : appts.map(a => `
+          <tr>
+            <td>${a.first_name || ''} ${a.last_name || ''}</td>
+            <td>${new Date(a.appointment_date).toLocaleDateString()}</td>
+            <td>${a.appointment_time}</td>
+            <td><span class="badge ${statusClass(a.status)}">${a.status}</span></td>
+          </tr>`).join('');
+
+    // Live Queue
+    const queue = await apiFetch('/queue');
+    document.getElementById('statQueue').textContent = queue.length;
+
+    const queueBody = document.getElementById('queueTable');
+    queueBody.innerHTML = queue.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:#a0aec0">Queue is empty</td></tr>'
+      : queue.map(q => `
+          <tr>
+            <td>${q.position}</td>
+            <td>${q.first_name} ${q.last_name}</td>
+            <td><span class="badge ${priorityClass(q.priority)}">${q.priority}</span></td>
+            <td>${q.status}</td>
+          </tr>`).join('');
+
+    // Patients count (may fail for non-admin roles — that's fine)
+    try {
+      const patients = await apiFetch('/patients');
+      document.getElementById('statPatients').textContent = patients.length;
+    } catch (e) { /* ignore */ }
+
+    // Low stock (may fail for non-admin/pharmacist — that's fine)
+    try {
+      const low = await apiFetch('/inventory/low-stock');
+      document.getElementById('statLowStock').textContent = low.length;
+    } catch (e) { /* ignore */ }
+
+  } catch (err) {
+    console.error('Dashboard error:', err);
+    document.getElementById('apptTable').innerHTML =
+      `<tr><td colspan="4" style="color:#e53e3e">Error: ${err.message}</td></tr>`;
+    document.getElementById('queueTable').innerHTML =
+      `<tr><td colspan="4" style="color:#e53e3e">Error: ${err.message}</td></tr>`;
+  }
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

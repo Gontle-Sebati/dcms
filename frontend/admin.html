@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin | City Clinic</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h2>🏥 DCMS</h2>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="doctor.html">Doctor Panel</a>
+    <a href="triage.html">Triage</a>
+    <a href="queue.html">Live Queue</a>
+    <a href="pharmacy.html">Pharmacy</a>
+    <a href="records.html">Medical Records</a>
+    <a href="reports.html">Reports</a>
+     <a href="admin.html">Admin Panel</a>
+    <a href="admin.html" class="active">Admin</a>
+    <button class="logout" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <h1>System Administration</h1>
+      <div class="who"><span id="adminName">...</span></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="num" id="statUsers">0</div><div class="lbl">Staff Accounts</div></div>
+      <div class="stat"><div class="num" id="statPatients">0</div><div class="lbl">Registered Patients</div></div>
+      <div class="stat"><div class="num" id="statAppts">0</div><div class="lbl">Total Appointments</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>👥 Staff Accounts</h3>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
+        </thead>
+        <tbody id="usersTable">
+          <tr><td colspan="5" style="text-align:center;color:#a0aec0">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>➕ Add Staff Member</h3>
+      <div class="field"><label>First Name</label><input id="nf"></div>
+      <div class="field"><label>Last Name</label><input id="nl"></div>
+      <div class="field"><label>Email</label><input type="email" id="ne"></div>
+      <div class="field"><label>Password</label><input type="password" id="np" placeholder="min 6 chars"></div>
+      <div class="field">
+        <label>Role</label>
+        <select id="nr">
+          <option value="RECEPTIONIST">Receptionist</option>
+          <option value="NURSE">Nurse</option>
+          <option value="DOCTOR">Doctor</option>
+          <option value="PHARMACIST">Pharmacist</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+      <button class="btn" onclick="addUser()">Create Account</button>
+      <div id="addMsg" class="msg"></div>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const user = getUser();
+if (!user) window.location.href = 'index.html';
+if (user.role !== 'ADMIN') {
+  alert('Admin access only.');
+  window.location.href = 'dashboard.html';
+}
+
+document.getElementById('adminName').textContent = user.name;
+
+async function loadUsers() {
+  const tbody = document.getElementById('usersTable');
+  try {
+    const users = await apiFetch('/auth/users');
+    document.getElementById('statUsers').textContent = users.length;
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td>#${u.user_id}</td>
+        <td>${u.first_name} ${u.last_name}</td>
+        <td>${u.email}</td>
+        <td><span class="badge blue">${u.role}</span></td>
+        <td>${u.is_active ? '<span class="badge green">Active</span>' : '<span class="badge red">Inactive</span>'}</td>
+      </tr>`).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#e53e3e">${err.message}</td></tr>`;
+  }
+}
+
+async function loadStats() {
+  try {
+    const patients = await apiFetch('/patients');
+    document.getElementById('statPatients').textContent = patients.length;
+    const appts = await apiFetch('/appointments/today');
+    document.getElementById('statAppts').textContent = appts.length;
+  } catch (e) { /* ignore */ }
+}
+
+async function addUser() {
+  const msg = document.getElementById('addMsg');
+  msg.className = 'msg';
+  const body = {
+    first_name: document.getElementById('nf').value,
+    last_name: document.getElementById('nl').value,
+    email: document.getElementById('ne').value,
+    password: document.getElementById('np').value,
+    role: document.getElementById('nr').value
+  };
+  if (!body.first_name || !body.email || !body.password) {
+    msg.textContent = 'All fields required';
+    msg.className = 'msg error';
+    return;
+  }
+  try {
+    await apiFetch('/auth/register/staff', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    msg.textContent = ' Staff member added';
+    msg.className = 'msg success';
+    ['nf','nl','ne','np'].forEach(id => document.getElementById(id).value = '');
+    loadUsers();
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'msg error';
+  }
+}
+
+loadUsers();
+loadStats();
+</script>
+<script src="js/tour.js"></script>
+</body>
+</html>

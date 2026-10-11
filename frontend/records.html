@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medical Records | City Clinic</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h2>🏥 DCMS</h2>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="doctor.html">Doctor Panel</a>
+    <a href="records.html" class="active">Medical Records</a>
+    <a href="triage.html">Triage</a>
+    <a href="queue.html">Live Queue</a>
+    <a href="pharmacy.html">Pharmacy</a>
+    <a href="reports.html">Reports</a>
+    <a href="admin.html">Admin Panel</a>
+    <button class="logout" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <h1>Medical Records</h1>
+      <div class="who"><span id="docName">...</span></div>
+    </div>
+
+    <div class="panel">
+      <h3>🔍 Find Patient</h3>
+      <div class="field">
+        <label>Search by Name, ID Number, or Phone</label>
+        <input id="searchBox" placeholder="Start typing..." autocomplete="off">
+      </div>
+      <div id="results"></div>
+    </div>
+
+    <div id="patientView" style="display:none">
+      <div class="panel">
+        <h3>👤 <span id="ptName"></span></h3>
+        <div style="font-size:0.85rem;color:#718096;margin-bottom:1rem" id="ptMeta"></div>
+        <button class="btn" style="width:auto;padding:0.5rem 1rem" onclick="openNewRecord()">➕ Add New Diagnosis</button>
+      </div>
+
+      <div class="panel" id="newRecordPanel" style="display:none">
+        <h3>📝 New Medical Record</h3>
+        <div class="field"><label>Diagnosis Code (ICD-10, optional)</label><input id="dxCode" placeholder="e.g., I10, E11.9"></div>
+        <div class="field"><label>Diagnosis Description</label><textarea id="dxDesc" rows="2" placeholder="Describe the condition"></textarea></div>
+        <div class="field"><label>Treatment Plan</label><textarea id="dxPlan" rows="2" placeholder="Treatment notes"></textarea></div>
+        <div class="field"><label>Follow-up Date (optional)</label><input type="date" id="dxFollow"></div>
+        <button class="btn" onclick="saveRecord()">Save Record</button>
+        <div id="saveMsg" class="msg"></div>
+      </div>
+
+      <div class="panel">
+        <h3>📚 Medical History</h3>
+        <div id="historyList"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const user = getUser();
+if (!user) window.location.href = 'index.html';
+if (user.role !== 'DOCTOR' && user.role !== 'ADMIN') {
+  alert('Access restricted to doctors.');
+  window.location.href = 'dashboard.html';
+}
+document.getElementById('docName').textContent = user.name;
+
+let currentPatient = null;
+let currentDoctorId = null;
+
+// Auto-detect logged-in doctor's ID
+(async () => {
+  try {
+    const doctors = await apiFetch('/patients/doctors/list');
+    const myDoctor = doctors.find(d => 
+      `${d.first_name} ${d.last_name}`.toLowerCase() === user.name.toLowerCase()
+    );
+    if (myDoctor) {
+      currentDoctorId = myDoctor.doctor_id;
+      console.log('Detected doctor_id:', currentDoctorId);
+    } else {
+      console.warn('Could not match logged-in user to a doctor record. Records may save with null doctor_id.');
+    }
+  } catch (e) {
+    console.error(e);
+  }
+})();
+
+(async () => {
+  try {
+    const doctors = await apiFetch('/patients/doctors/list');
+    const me = doctors.find(d => d.doctor_id); // grab any
+    // find by matching name
+    const myDoctor = doctors.find(d => `${d.first_name} ${d.last_name}` === user.name);
+    if (myDoctor) currentDoctorId = myDoctor.doctor_id;
+  } catch (e) {}
+})();
+
+// Search
+document.getElementById('searchBox').addEventListener('input', async (e) => {
+  const q = e.target.value.trim();
+  const results = document.getElementById('results');
+  if (q.length < 2) { results.innerHTML = ''; return; }
+  try {
+    const patients = await apiFetch(`/patients/search?q=${encodeURIComponent(q)}`);
+    if (patients.length === 0) {
+      results.innerHTML = '<p style="color:#a0aec0;font-size:0.85rem">No matches</p>';
+      return;
+    }
+    results.innerHTML = patients.map(p => `
+      <div style="padding:0.7rem;border-bottom:1px solid #edf2f7;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <b>${p.first_name} ${p.last_name}</b>
+          <div style="font-size:0.8rem;color:#718096">ID: ${p.id_number || '-'} · Phone: ${p.phone || '-'}</div>
+        </div>
+        <button class="btn success" style="width:auto;padding:0.4rem 0.9rem;font-size:0.85rem" onclick='openPatient(${JSON.stringify(p)})'>Open</button>
+      </div>`).join('');
+  } catch (err) {
+    results.innerHTML = `<p style="color:#e53e3e">${err.message}</p>`;
+  }
+});
+
+async function openPatient(p) {
+  currentPatient = p;
+  document.getElementById('ptName').textContent = `${p.first_name} ${p.last_name}`;
+  document.getElementById('ptMeta').textContent = `ID: ${p.id_number || '-'} · DOB: ${p.date_of_birth || '-'} · Phone: ${p.phone || '-'}`;
+  document.getElementById('patientView').style.display = 'block';
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('newRecordPanel').style.display = 'none';
+  await loadHistory();
+  document.getElementById('patientView').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function loadHistory() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = '<p style="color:#a0aec0">Loading...</p>';
+  try {
+    const records = await apiFetch(`/records/patient/${currentPatient.patient_id}`);
+    if (records.length === 0) {
+      list.innerHTML = '<p style="color:#a0aec0">No medical records yet.</p>';
+      return;
+    }
+    list.innerHTML = records.map(r => `
+      <div style="padding:1rem;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:0.8rem">
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
+          <b>${r.diagnosis_code || 'Diagnosis'}</b>
+          <span style="font-size:0.8rem;color:#718096">${new Date(r.created_at).toLocaleString()}</span>
+        </div>
+        <div style="font-size:0.9rem;margin-bottom:0.3rem"><b>Description:</b> ${r.diagnosis_description || '-'}</div>
+        <div style="font-size:0.9rem;margin-bottom:0.3rem"><b>Treatment:</b> ${r.treatment_plan || '-'}</div>
+        <div style="font-size:0.85rem;color:#718096">By Dr. ${r.doctor_first || '?'} ${r.doctor_last || '?'}</div>
+      </div>`).join('');
+  } catch (err) {
+    list.innerHTML = `<p style="color:#e53e3e">${err.message}</p>`;
+  }
+}
+
+function openNewRecord() {
+  document.getElementById('newRecordPanel').style.display = 'block';
+  document.getElementById('newRecordPanel').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function saveRecord() {
+  const msg = document.getElementById('saveMsg');
+  msg.className = 'msg';
+  const body = {
+    patient_id: currentPatient.patient_id,
+    doctor_id: currentDoctorId,
+    diagnosis_code: document.getElementById('dxCode').value,
+    diagnosis_description: document.getElementById('dxDesc').value,
+    treatment_plan: document.getElementById('dxPlan').value,
+    followup_date: document.getElementById('dxFollow').value || null
+  };
+  if (!body.diagnosis_description) {
+    msg.textContent = 'Diagnosis description required';
+    msg.className = 'msg error';
+    return;
+  }
+  try {
+    await apiFetch('/records', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    msg.textContent = ' Record saved';
+    msg.className = 'msg success';
+    ['dxCode','dxDesc','dxPlan','dxFollow'].forEach(id => document.getElementById(id).value = '');
+    loadHistory();
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'msg error';
+  }
+}
+</script>
+<script src="js/tour.js"></script>
+</body>
+</html>
+
+

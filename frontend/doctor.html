@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doctor Panel | City Clinic</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h2>🏥 DCMS</h2>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="doctor.html" class="active">Doctor Panel</a>
+    <a href="records.html">Medical Records</a>
+    <a href="triage.html">Triage</a>
+    <a href="queue.html">Live Queue</a>
+    <a href="pharmacy.html">Pharmacy</a>
+    <a href="admin.html">Admin Panel</a>
+    <a href="reports.html">Reports</a>
+    <button class="logout" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <h1>Doctor's Panel</h1>
+      <div class="who">Dr. <span id="doctorName">...</span></div>
+    </div>
+
+    <div class="panel">
+      <h3>⏳ Pending Appointment Requests</h3>
+      <p style="color:#718096;font-size:0.85rem;margin-bottom:1rem;">
+        Approve to confirm the appointment. Decline to reject the request.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Patient</th><th>Date</th><th>Time</th><th>Reason</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="pendingTable">
+          <tr><td colspan="5" style="text-align:center;color:#a0aec0">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3> Approved Appointments</h3>
+      <table>
+        <thead>
+          <tr><th>Patient</th><th>Date</th><th>Time</th><th>Status</th></tr>
+        </thead>
+        <tbody id="approvedTable">
+          <tr><td colspan="4" style="text-align:center;color:#a0aec0">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const user = getUser();
+if (!user) { window.location.href = 'index.html'; }
+if (user.role !== 'DOCTOR' && user.role !== 'ADMIN') {
+  alert('Access restricted to doctors.');
+  window.location.href = 'dashboard.html';
+}
+
+document.getElementById('doctorName').textContent = user.name || 'Doctor';
+
+async function loadPending() {
+  const tbody = document.getElementById('pendingTable');
+  try {
+    const appts = await apiFetch('/appointments/pending');
+    if (appts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0">No pending requests </td></tr>';
+      return;
+    }
+    tbody.innerHTML = appts.map(a => `
+      <tr>
+        <td>${a.first_name} ${a.last_name}</td>
+        <td>${new Date(a.appointment_date).toLocaleDateString()}</td>
+        <td>${a.appointment_time}</td>
+        <td>${a.reason_for_visit || '-'}</td>
+        <td>
+          <button class="btn success" style="width:auto;padding:0.3rem 0.7rem;font-size:0.8rem;display:inline-block"
+                  onclick="decide(${a.appointment_id}, 'Booked')">Approve</button>
+          <button class="btn danger" style="width:auto;padding:0.3rem 0.7rem;font-size:0.8rem;display:inline-block"
+                  onclick="decide(${a.appointment_id}, 'Cancelled')">Decline</button>
+        </td>
+      </tr>`).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#e53e3e">${err.message}</td></tr>`;
+  }
+}
+
+async function loadApproved() {
+  const tbody = document.getElementById('approvedTable');
+  try {
+    const approved = await apiFetch('/appointments/approved');
+    if (approved.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0">No approved appointments</td></tr>';
+      return;
+    }
+    tbody.innerHTML = approved.map(a => `
+      <tr>
+        <td>${a.first_name} ${a.last_name}</td>
+        <td>${new Date(a.appointment_date).toLocaleDateString()}</td>
+        <td>${a.appointment_time}</td>
+        <td><span class="badge green">${a.status}</span></td>
+      </tr>`).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" style="color:#e53e3e">${err.message}</td></tr>`;
+  }
+}
+async function decide(appointmentId, status) {
+  try {
+    await apiFetch(`/appointments/${appointmentId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+    loadPending();
+    loadApproved();
+  } catch (err) {
+    alert('Failed: ' + err.message);
+  }
+}
+
+loadPending();
+loadApproved();
+</script>
+<script src="js/tour.js"></script>
+</body>
+</html>
